@@ -80,9 +80,21 @@ def _tensor_conv1d(
     s1 = input_strides
     s2 = weight_strides
 
-    # TODO: Implement for Task 4.1.
-    raise NotImplementedError('Need to implement for Task 4.1')
-
+    for b in prange(batch):
+        for oc in range(out_channels):
+            for ow in range(out_width):
+                acc = 0.0
+                for ic in range(in_channels):
+                    for kx in range(kw):
+                        if reverse:
+                            w = ow - kw + kx + 1
+                        else:
+                            w = ow + kx
+                        if 0 <= w < width:
+                            input_val = input[b * s1[0] + ic * s1[1] + w * s1[2]]
+                            weight_val = weight[oc * s2[0] + ic * s2[1] + kx * s2[2]]
+                            acc += input_val * weight_val
+                out[b * out_strides[0] + oc * out_strides[1] + ow * out_strides[2]] = acc
 
 tensor_conv1d = njit(parallel=True)(_tensor_conv1d)
 
@@ -190,7 +202,7 @@ def _tensor_conv2d(
         weight_strides (Strides): strides for `input` tensor.
         reverse (bool): anchor weight at top-left or bottom-right
     """
-    batch_, out_channels, _, _ = out_shape
+    batch_, out_channels, out_height, out_width = out_shape
     batch, in_channels, height, width = input_shape
     out_channels_, in_channels_, kh, kw = weight_shape
 
@@ -206,8 +218,24 @@ def _tensor_conv2d(
     s10, s11, s12, s13 = s1[0], s1[1], s1[2], s1[3]
     s20, s21, s22, s23 = s2[0], s2[1], s2[2], s2[3]
 
-    # TODO: Implement for Task 4.2.
-    raise NotImplementedError('Need to implement for Task 4.2')
+    for b in prange(batch):
+        for oc in range(out_channels):
+            for oh in range(out_height):
+                for ow in range(out_width):
+                    acc = 0.0
+                    for ic in range(in_channels):
+                        for kh_idx in range(kh):
+                            for kw_idx in range(kw):
+                                if reverse:
+                                    h = oh - kh + kh_idx + 1
+                                    w = ow - kw + kw_idx + 1
+                                else:
+                                    h = oh + kh_idx
+                                    w = ow + kw_idx
+                                
+                                if 0 <= h < height and 0 <= w < width:
+                                    acc += input[b * s10 + ic * s11 + h * s12 + w * s13] * weight[oc * s20 + ic * s21 + kh_idx * s22 + kw_idx * s23]
+                    out[b * out_strides[0] + oc * out_strides[1] + oh * out_strides[2] + ow * out_strides[3]] = acc
 
 
 tensor_conv2d = njit(parallel=True, fastmath=True)(_tensor_conv2d)
